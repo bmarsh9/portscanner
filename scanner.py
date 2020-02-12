@@ -12,10 +12,11 @@ import nmap
 import datetime
 
 class PortScan():
-    def __init__(self,target,arguments,to_csv=False):
+    def __init__(self,target,arguments,include_down_hosts=False,to_csv=False):
         self.nm = nmap.PortScanner()
         self.target = target
         self.arguments = arguments
+        self.include_down_hosts = include_down_hosts
         self.to_csv = to_csv
 
     def execute(self):
@@ -28,7 +29,7 @@ class PortScan():
         return self.to_json()
 
     def to_json(self):
-        dataset = {"host_data":[],"targets":self.nm.all_hosts()}
+        dataset = {"host_data":[],"targets":self.target}
 
         # collect scan metrics
         family_list = []
@@ -93,7 +94,13 @@ class PortScan():
                                 data[key] = value
                     data["os_data"] = self.nm[host]["osmatch"] # add full os data
 
-                # enumerate all ports
+                # per host port metrics
+                host_services_list = []
+                host_ports_open_list = []
+                host_ports_open = 0
+                host_services = 0
+
+                # enumerate all protocols
                 indexed_port_keys = ["state","reason","name","product","version","extrainfo","conf","cpe","script"]
                 for proto in self.nm[host].all_protocols():
                     lport = self.nm[host][proto].keys()
@@ -103,11 +110,15 @@ class PortScan():
                             if key in indexed_port_keys:
                                 # add to metrics
                                 if key == "state" and value == "open":
+                                    host_ports_open += 1
+                                    host_ports_open_list.append(port)
                                     total_ports_open += 1
                                     if port not in ports_open:
                                         ports_open.append(port)
                                         uniq_ports_open += 1
                                 elif key == "name" and value and value != "":
+                                    host_services += 1
+                                    host_services_list.append(value)
                                     total_services += 1
                                     if value not in services:
                                         services.append(value)
@@ -117,8 +128,14 @@ class PortScan():
                         temp["port"] = port
                         temp["protocol"] = proto
                         data["port_data"].append(temp)
-            # add host to larger dataset
-            dataset["host_data"].append(data)
+                data["ports_open"] = host_ports_open
+                data["services"] = host_services
+                dataset["host_data"].append(data)
+            # down host
+            else:
+                if self.include_down_hosts:
+                    dataset["host_data"].append(data)
+
         # insert overall metrics
         dataset["uniq_family"] = uniq_family
         dataset["uniq_os"] = uniq_os
