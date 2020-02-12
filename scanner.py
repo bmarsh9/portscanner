@@ -59,52 +59,59 @@ class PortScan():
         for host in self.nm.all_hosts():
             # set host information
             data = {"port_data":[],"ip":self.nm[host]["addresses"]["ipv4"],"hostname":self.nm[host].hostname(),
-                "state":self.nm[host].state(),"uptime":self.nm[host]["uptime"]["seconds"],"last_boot":self.nm[host]["uptime"]["lastboot"]}
+                "state":self.nm[host].state(),"uptime":None,"last_boot":None}
 
-            # enumerate OS version
-            indexed_osclass_keys = ["type","vendor","osfamily","osgen"]
-            if self.nm[host].get("osmatch"):
-                # get os/os_class match with highest accuracy
-                likely_os = sorted(self.nm[host]["osmatch"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
-                data["os"] = likely_os["name"]
-                data["accuracy"] = likely_os["accuracy"]
+            if self.nm[host].state() == "up":
+                if self.nm[host].get("uptime"):
+                    data["uptime"] = self.nm[host]["uptime"].get("seconds")
+                    data["last_boot"] = self.nm[host]["uptime"].get("lastboot")
 
-                likely_osclass = sorted(likely_os["osclass"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
-                for key,value in likely_osclass.items():
-                    if key in indexed_osclass_keys:
-                        data[key] = value
-                data["os_data"] = self.nm[host]["osmatch"] # add full os data
-                if likely_os["osfamily"] not in os_list:
-                    uniq_os += 1
-                    os_list.append(likely_os["osfamily"])
+                # enumerate OS version
+                indexed_osclass_keys = ["type","vendor","osfamily","osgen"]
+                if self.nm[host].get("osmatch"):
+                    # get os match with highest accuracy
+                    likely_os = sorted(self.nm[host]["osmatch"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
+                    data["os"] = likely_os["name"]
+                    data["accuracy"] = likely_os["accuracy"]
 
-            # enumerate all ports
-            indexed_port_keys = ["state","reason","name","product","version","extrainfo","conf","cpe","script"]
-            for proto in self.nm[host].all_protocols():
-                lport = self.nm[host][proto].keys()
-                for port in lport:
-                    temp = {}
-                    for key,value in self.nm[host][proto][port].items(): # iterate over all ports
-                        if key in indexed_port_keys:
-                            # add to metrics
-                            if key == "state" and value == "open":
-                                total_ports_open += 1
-                                if port not in ports_open:
-                                    ports_open.append(port)
-                                    uniq_ports_open += 1
-                            elif key == "name" and value and value != "":
-                                total_services += 1
-                                if value not in services:
-                                    services.append(value)
-                                    uniq_services += 1
-                            temp[key] = value
-                    # finalize host data
-                    temp["port"] = port
-                    temp["protocol"] = proto
-                    data["port_data"].append(temp)
-            # add host to larger dataset
-            dataset["host_data"].append(data)
+                    # get os_class match with highest accuracy
+                    if likely_os.get("osclass"):
+                        likely_osclass = sorted(likely_os["osclass"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
+                        for key,value in likely_osclass.items():
+                            if key in indexed_osclass_keys:
+                                data[key] = value
+                        if likely_os.get("osfamily"):
+                            if likely_os["osfamily"] not in os_list:
+                                uniq_os += 1
+                                os_list.append(likely_os["osfamily"])
+                    data["os_data"] = self.nm[host]["osmatch"] # add full os data
 
+                # enumerate all ports
+                indexed_port_keys = ["state","reason","name","product","version","extrainfo","conf","cpe","script"]
+                for proto in self.nm[host].all_protocols():
+                    lport = self.nm[host][proto].keys()
+                    for port in lport:
+                        temp = {}
+                        for key,value in self.nm[host][proto][port].items(): # iterate over all ports
+                            if key in indexed_port_keys:
+                                # add to metrics
+                                if key == "state" and value == "open":
+                                    total_ports_open += 1
+                                    if port not in ports_open:
+                                        ports_open.append(port)
+                                        uniq_ports_open += 1
+                                elif key == "name" and value and value != "":
+                                    total_services += 1
+                                    if value not in services:
+                                        services.append(value)
+                                        uniq_services += 1
+                                temp[key] = value
+                        # finalize host data
+                        temp["port"] = port
+                        temp["protocol"] = proto
+                        data["port_data"].append(temp)
+                # add host to larger dataset
+                dataset["host_data"].append(data)
         # insert overall metrics
         dataset["uniq_os"] = uniq_os
         dataset["total_ports_open"] = total_ports_open
