@@ -31,10 +31,12 @@ class PortScan():
         dataset = {"host_data":[],"targets":self.nm.all_hosts()}
 
         # collect scan metrics
+        family_list = []
         os_list = []
         services = []
         ports_open = []
 
+        uniq_family = 0
         uniq_os = 0
         total_ports_open = 0
         uniq_ports_open = 0
@@ -71,19 +73,24 @@ class PortScan():
                 if self.nm[host].get("osmatch"):
                     # get os match with highest accuracy
                     likely_os = sorted(self.nm[host]["osmatch"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
-                    data["os"] = likely_os["name"]
-                    data["accuracy"] = likely_os["accuracy"]
+                    data["os"] = likely_os.get("name","unknown")
+                    # add uniq os type
+                    if likely_os.get("name","unknown") not in os_list:
+                        uniq_os += 1
+                        os_list.append(likely_os.get("name","unknown"))
+
+                    data["accuracy"] = likely_os.get("accuracy",0)
 
                     # get os_class match with highest accuracy
                     if likely_os.get("osclass"):
                         likely_osclass = sorted(likely_os["osclass"],key=lambda i: int(i["accuracy"]),reverse=True)[0]
                         for key,value in likely_osclass.items():
                             if key in indexed_osclass_keys:
+                                # add uniq os family type
+                                if key == "osfamily" and value not in family_list:
+                                    uniq_family += 1
+                                    family_list.append(value)
                                 data[key] = value
-                        if likely_os.get("osfamily"):
-                            if likely_os["osfamily"] not in os_list:
-                                uniq_os += 1
-                                os_list.append(likely_os["osfamily"])
                     data["os_data"] = self.nm[host]["osmatch"] # add full os data
 
                 # enumerate all ports
@@ -113,6 +120,7 @@ class PortScan():
                 # add host to larger dataset
                 dataset["host_data"].append(data)
         # insert overall metrics
+        dataset["uniq_family"] = uniq_family
         dataset["uniq_os"] = uniq_os
         dataset["total_ports_open"] = total_ports_open
         dataset["uniq_ports_open"] = uniq_ports_open
