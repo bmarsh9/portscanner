@@ -14,7 +14,6 @@ print(json.dumps(results,indent=4))
 ```
 
 # testing -- do the math
-
   * nmap flags: `-p 1-65535 -T4 -A -v -O`
   * desc: full TCP port scan with OS detection
   * avg time per host that is up: 27 seconds
