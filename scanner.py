@@ -117,8 +117,8 @@ class PortScan():
                         temp["port"] = port
                         temp["protocol"] = proto
                         data["port_data"].append(temp)
-                # add host to larger dataset
-                dataset["host_data"].append(data)
+            # add host to larger dataset
+            dataset["host_data"].append(data)
         # insert overall metrics
         dataset["uniq_family"] = uniq_family
         dataset["uniq_os"] = uniq_os
