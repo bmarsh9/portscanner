@@ -53,7 +53,7 @@ class PortScan():
         scan_stats_keys = ["elapsed","uphosts","downhosts","totalhosts"]
         for key,value in self.nm.scanstats().items():
             if key in scan_stats_keys:
-                dataset[key] = value
+                dataset[key] = float(value)
 
         percentage_up = (int(self.nm.scanstats()["uphosts"]) / int(self.nm.scanstats()["totalhosts"]) *100)
         dataset["percentage_up"] = percentage_up
